@@ -1,6 +1,8 @@
-# Sensitive data
+# Sensitive data — nie in Git
 .env
 acme.json
+credentials.txt
+db-create.sql
 logs/
 proxy/logs/
 proxy/acme.json

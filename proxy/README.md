@@ -12,29 +12,31 @@ Zentraler Eingangspunkt für alle Nextcloud-Instanzen auf diesem App-Server. Lä
 
 ## Setup (einmalig)
 
+**Empfohlen: Setup-Script:**
+
 ```bash
-# 1. .env aus Vorlage erstellen
-cp .env.example .env
+chmod +x init.sh
+./init.sh
+```
 
-# 2. Basic-Auth-Hash für das Dashboard erzeugen
-docker run --rm httpd:alpine htpasswd -nbB admin "EinSicheresPasswort"
-# Ergebnis in .env unter DASHBOARD_AUTH eintragen
-# WICHTIG: jedes $ verdoppeln (aus $2y$05$… wird $$2y$$05$$…)
+Das Script fragt Domain + E-Mail-Adresse ab, generiert ein sicheres Dashboard-Passwort, erzeugt den bcrypt-Hash, schreibt `.env` + `acme.json` + `logs/`-Verzeichnis und legt eine `credentials.txt` mit dem Klartext-Passwort an. Anschließend:
 
-# 3. Traefik-Public-Netz anlegen (einmalig)
-docker network create traefik-public
-
-# 4. Acme-Datei vorbereiten (Let's-Encrypt-Zertifikate)
-touch acme.json && chmod 600 acme.json
-
-# 5. Logs-Verzeichnis
-mkdir -p logs
-
-# 6. Starten
+```bash
+docker network create traefik-public  # einmalig pro Server
 docker compose up -d
-
-# 7. Logs prüfen
 docker compose logs -f
+```
+
+**Manuell (falls bevorzugt):**
+
+```bash
+cp .env.example .env
+docker run --rm httpd:alpine htpasswd -nbB admin "EinSicheresPasswort"
+# Ergebnis in .env unter DASHBOARD_AUTH eintragen — jedes $ verdoppeln ($$ statt $)
+docker network create traefik-public
+touch acme.json && chmod 600 acme.json
+mkdir -p logs
+docker compose up -d
 ```
 
 ## Eine NC-Instanz hinzufügen

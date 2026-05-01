@@ -12,20 +12,31 @@ Eine NC-Instanz im Multi-Domain-Setup. Wird vom zentralen Traefik (siehe `../../
 
 ## Setup
 
-```bash
-# 1. .env aus Vorlage erstellen und ausfüllen
-cp .env.example .env
-nano .env   # DB_HOST = private IP, DB_PASSWORD = neues Passwort
+**Empfohlen: Setup-Script:**
 
-# 2. Stack starten
+```bash
+chmod +x init.sh
+./init.sh
+```
+
+Das Script fragt Domain + DB-Server-IP ab, generiert ein sicheres DB-Passwort und ein NC-Admin-Passwort, schreibt `.env` und `db-create.sql` (für den DB-Server) und legt eine `credentials.txt` an.
+
+```bash
+# 1. db-create.sql an den DB-Server senden, <APP_SERVER_PRIVATE_IP> ersetzen, ausführen
+#    (siehe Anleitung im init.sh-Output)
+
+# 2. NFS-Mount /mnt/nextcloud-data muss aktiv sein (siehe ../../host-setup.md)
+
+# 3. Stack starten — NC-Admin-Account wird automatisch beim ersten Start angelegt
 docker compose up -d
 
-# 3. Traefik holt automatisch das Zertifikat (kann 30–60 Sek. dauern)
-docker logs -f nc-example-web
+# 4. Logs prüfen, Traefik holt SSL-Zertifikat (kann 30–60 Sek dauern)
+docker compose logs -f
 
-# 4. Erster Aufruf: https://cloud.example.com
-#    Beim ersten Aufruf wird Nextcloud installiert (Admin-Zugangsdaten festlegen).
+# 5. Aufruf: https://<deine-domain>  → Login mit Admin-Credentials aus credentials.txt
 ```
+
+**Manuell:** `cp .env.example .env`, alle Werte selbst eintragen, dann oben weiter ab Schritt 1.
 
 ## Nextcloud-CLI (occ)
 
