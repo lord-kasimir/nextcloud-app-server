@@ -1,0 +1,11 @@
+# Sensitive data
+.env
+acme.json
+logs/
+proxy/logs/
+proxy/acme.json
+
+# OS
+.DS_Store
+*.swp
+*.bak

@@ -1,0 +1,35 @@
+# Traefik v3 — zentraler Reverse Proxy für alle Nextcloud-Instanzen.
+# Läuft EINMAL pro App-Server, hört auf Port 80/443, holt automatisch
+# Let's-Encrypt-Zertifikate für jede Domain die per Label registriert wird.
+services:
+  traefik:
+    image: traefik:v3.2
+    container_name: traefik
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - traefik-public
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./acme.json:/letsencrypt/acme.json
+      - ./logs:/var/log/traefik
+    labels:
+      # Dashboard unter https://traefik.${TRAEFIK_DOMAIN}
+      - "traefik.enable=true"
+      - "traefik.http.routers.dashboard.rule=Host(`${TRAEFIK_DOMAIN}`)"
+      - "traefik.http.routers.dashboard.entrypoints=websecure"
+      - "traefik.http.routers.dashboard.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.dashboard.service=api@internal"
+      - "traefik.http.routers.dashboard.middlewares=dashboard-auth"
+      # Basic-Auth für das Dashboard (Wert in .env: DASHBOARD_USER:HASH)
+      - "traefik.http.middlewares.dashboard-auth.basicauth.users=${DASHBOARD_AUTH}"
+      # HTTP → HTTPS Redirect-Middleware (global verwendbar)
+      - "traefik.http.middlewares.https-redirect.redirectscheme.scheme=https"
+      - "traefik.http.middlewares.https-redirect.redirectscheme.permanent=true"
+
+networks:
+  traefik-public:
+    external: true
