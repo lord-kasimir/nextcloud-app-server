@@ -55,7 +55,7 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
 
 ## Reihenfolge
 
-1. **Host vorbereiten:** UFW + CrowdSec + Docker installieren, NFS-Mount auf `/mnt/nextcloud-data`, DNS-A-Records auf die App-Server-IP zeigen lassen
+1. **Host vorbereiten:** Schritt-für-Schritt-Anleitung in [host-setup.md](host-setup.md) — Docker, UFW, CrowdSec, NFS-Mount, DNS
 2. **Traefik starten** (einmalig): siehe `proxy/README.md`
 3. **NC-Instanz starten:** siehe `instances/example/README.md`
 4. **Weitere Instanzen:** `instances/example` als Vorlage kopieren, Domain + DB-Daten anpassen, starten
