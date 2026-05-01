@@ -35,6 +35,46 @@ docker compose exec --user www-data nextcloud php occ files:scan --all
 docker compose exec --user www-data nextcloud php occ db:add-missing-indices
 ```
 
+## Hardening nach dem ersten Start
+
+Nach erfolgreichem ersten Login die folgenden Befehle ausführen — verbessern Sicherheit und Performance:
+
+```bash
+# Alias zur Vereinfachung (für die Shell-Session)
+alias nocc='docker compose exec --user www-data nextcloud php occ'
+
+# Brute-Force-Schutz aktivieren
+nocc config:system:set auth.bruteforce.protection.enabled --type=bool --value=true
+
+# Hintergrund-Cron statt AJAX (haben wir per Cron-Container, hier nur das Setting)
+nocc background:cron
+
+# Memcache: APCu lokal, Redis distributed/locking (deutlich schneller)
+nocc config:system:set memcache.local --value='\OC\Memcache\APCu'
+nocc config:system:set memcache.distributed --value='\OC\Memcache\Redis'
+nocc config:system:set memcache.locking --value='\OC\Memcache\Redis'
+
+# Log-Rotation einstellen (100 MB pro Datei)
+nocc config:system:set log_rotate_size --value='104857600'
+
+# Privacy / UX
+nocc config:system:set simpleSignUpLink.shown --type=bool --value=false
+nocc app:disable survey_client
+nocc app:disable firstrunwizard
+
+# Optionale Konsistenzprüfung (kann Stunden dauern bei großem Datadir)
+nocc maintenance:repair --include-expensive
+```
+
+### config.php-Eintrag für Redis (sollte automatisch korrekt sein durch REDIS_HOST-env, hier zur Kontrolle)
+
+```php
+'redis' => [
+    'host' => 'redis',
+    'port' => 6379,
+],
+```
+
 ## Eine zweite Instanz hinzufügen
 
 **Vorab:** A-Record für die neue Domain auf die App-Server-IP setzen — sonst kann Traefik kein Let's-Encrypt-Zertifikat holen.

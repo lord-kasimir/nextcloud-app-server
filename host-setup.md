@@ -78,10 +78,14 @@ systemctl status crowdsec --no-pager
 cscli metrics
 ```
 
-Optional später: das `crowdsecurity/traefik`-Collection installieren für Traefik-Logs:
+Empfohlene Collections + Scenarios für Nextcloud + Traefik installieren:
 ```bash
 cscli collections install crowdsecurity/traefik
+cscli collections install crowdsecurity/nginx
+cscli collections install crowdsecurity/nextcloud
+cscli scenarios install crowdsecurity/nextcloud-bf
 systemctl restart crowdsec
+cscli collections list
 ```
 
 ## 6. NFS-Mount der Storage-Box
@@ -131,6 +135,40 @@ cd nextcloud-app-server
 ```
 
 Danach: `proxy/README.md` für den Reverse-Proxy folgen, dann `instances/example/README.md` für die erste Instanz.
+
+## 10. Kernel-/TCP-Stack-Hardening
+
+Zusätzliche Sicherheitsmaßnahmen auf Kernel-Ebene, sinnvoll für öffentlich erreichbare Server.
+
+```bash
+cat > /etc/sysctl.d/100-nextcloud.conf << 'CNF'
+# SYN-Flood-Schutz
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_max_syn_backlog = 4096
+
+# IP-Spoofing-Schutz
+net.ipv4.conf.all.rp_filter = 1
+net.ipv4.conf.default.rp_filter = 1
+
+# ICMP-Redirects ignorieren
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv4.conf.default.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+net.ipv6.conf.default.accept_redirects = 0
+
+# Source-Routing deaktivieren
+net.ipv4.conf.all.accept_source_route = 0
+net.ipv4.conf.default.accept_source_route = 0
+
+# Connection-Tracking-Limit erhöhen
+net.core.somaxconn = 1024
+
+# Bogus ICMP ignorieren
+net.ipv4.icmp_ignore_bogus_error_responses = 1
+CNF
+
+sysctl --system
+```
 
 ## Sicherheits-Hinweis
 

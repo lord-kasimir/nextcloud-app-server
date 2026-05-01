@@ -27,7 +27,9 @@ cat > /etc/mysql/mariadb.conf.d/99-nextcloud.cnf << 'CNF'
 [mysqld]
 innodb_file_per_table = 1
 innodb_buffer_pool_size = 1G
-innodb_log_file_size = 128M
+innodb_log_file_size = 256M
+transaction_isolation = READ-COMMITTED
+max_allowed_packet = 512M
 character_set_server = utf8mb4
 collation_server = utf8mb4_general_ci
 CNF
@@ -36,7 +38,9 @@ CNF
 **Erklärung der Parameter:**
 - `innodb_file_per_table = 1` — jede Tabelle eigene Datei (sauberere Backups)
 - `innodb_buffer_pool_size = 1G` — RAM für Datencache. Bei mehr verfügbarem RAM erhöhen (Faustregel: ~25–50 % des RAMs, wenn der Server nur DB ist; weniger, wenn weitere Dienste laufen)
-- `innodb_log_file_size = 128M` — Redo-Log-Größe; größer = weniger I/O-Spitzen bei Datei-Uploads
+- `innodb_log_file_size = 256M` — Redo-Log-Größe; größer = weniger I/O-Spitzen bei großen Schreibvorgängen
+- `transaction_isolation = READ-COMMITTED` — Nextcloud-Empfehlung: verhindert Deadlocks bei vielen parallelen Transaktionen
+- `max_allowed_packet = 512M` — wichtig für große Uploads und große BLOB-Operationen
 - `character_set_server = utf8mb4` + Collation — Pflicht für Nextcloud (Emoji-Support, Unicode komplett)
 
 ## 4. Bind-Address auf private IP setzen
@@ -109,6 +113,33 @@ cscli metrics
 # Auf dem APP-Server testen, ob die Verbindung klappt
 mariadb -h <DB_SERVER_PRIVATE_IP> -u user_example -p db_example
 # → Sollte den MariaDB-Prompt anzeigen
+```
+
+## Backups
+
+Tägliches DB-Backup empfohlen. Einfaches Skript `/usr/local/bin/nc-db-backup.sh`:
+
+```bash
+#!/bin/bash
+BACKUP_DIR=/var/backups/mariadb
+mkdir -p "$BACKUP_DIR"
+cd "$BACKUP_DIR"
+
+# Pro DB ein eigener Dump
+for DB in $(mysql -uroot -BNe "SHOW DATABASES" | grep -vE "^(information_schema|performance_schema|mysql|sys)$"); do
+    mysqldump --single-transaction --quick --default-character-set=utf8mb4 \
+        --routines --triggers --events "$DB" | gzip > "$DB-$(date +%Y%m%d).sql.gz"
+done
+
+# Alte Backups löschen (älter als 14 Tage)
+find "$BACKUP_DIR" -name "*.sql.gz" -mtime +14 -delete
+```
+
+Per Cron einmal täglich ausführen:
+
+```bash
+chmod +x /usr/local/bin/nc-db-backup.sh
+echo "0 3 * * * root /usr/local/bin/nc-db-backup.sh" > /etc/cron.d/nc-db-backup
 ```
 
 ## Auf einem bestehenden Linux-Server (z. B. ohne dass er ausschließlich DB-Server ist)

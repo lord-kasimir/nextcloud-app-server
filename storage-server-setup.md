@@ -152,6 +152,17 @@ chmod 750 /srv/nextcloud/*
 
 ---
 
+## Backup-Strategie
+
+**Bei Storage-Box:** In der Hetzner Console unter Storage-Box → "Snapshots" automatische Snapshots aktivieren. Hetzner bietet bis zu 10 manuelle + automatische Snapshots inklusive. Empfehlung: täglich, Aufbewahrung 7-14 Tage.
+
+**Bei eigenem NFS-Server:** Eigene Backup-Lösung nötig. Optionen:
+- `rsnapshot` für inkrementelle Datei-Backups auf separates Volume
+- `borgbackup` mit Deduplizierung auf externe Storage-Box
+- `zfs snapshot` falls das Dateisystem ZFS ist
+
+In jedem Fall: **Datenbank-Backup separat vom DB-Server** (siehe `db-server-setup.md`), beide zusammen ergeben ein konsistentes NC-Backup.
+
 ## Hinweis zu UID/GID 33
 
 Nextcloud im Container läuft als `www-data` mit UID/GID 33. Der NFS-Server (egal ob Storage-Box oder eigener Server) muss die Verzeichnisse mit dieser UID/GID anlegen, sonst gibt es Permission-Fehler.

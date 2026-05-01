@@ -16,6 +16,8 @@ services:
       - nc-custom-apps:/var/www/html/custom_apps
       - nc-themes:/var/www/html/themes
       - /mnt/nextcloud-data:/var/www/html/data        # NFS-Mount → Storage-Box
+      - ./php/zz-nextcloud.ini:/usr/local/etc/php/conf.d/zz-nextcloud.ini:ro
+      - ./php/zz-fpm.conf:/usr/local/etc/php-fpm.d/zz-fpm.conf:ro
     environment:
       - MYSQL_HOST=${DB_HOST}
       - MYSQL_DATABASE=${DB_NAME}
@@ -25,8 +27,6 @@ services:
       - NEXTCLOUD_TRUSTED_DOMAINS=${DOMAIN}
       - OVERWRITEPROTOCOL=https
       - OVERWRITECLIURL=https://${DOMAIN}
-      - PHP_MEMORY_LIMIT=1G
-      - PHP_UPLOAD_LIMIT=2G
 
   web:
     image: nginx:alpine
@@ -83,6 +83,7 @@ services:
       - nc-custom-apps:/var/www/html/custom_apps
       - nc-themes:/var/www/html/themes
       - /mnt/nextcloud-data:/var/www/html/data
+      - ./php/zz-nextcloud.ini:/usr/local/etc/php/conf.d/zz-nextcloud.ini:ro
     entrypoint: /cron.sh
 
 networks:
