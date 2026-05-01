@@ -37,19 +37,33 @@ docker compose exec --user www-data nextcloud php occ db:add-missing-indices
 
 ## Eine zweite Instanz hinzufügen
 
+**Vorab:** A-Record für die neue Domain auf die App-Server-IP setzen — sonst kann Traefik kein Let's-Encrypt-Zertifikat holen.
+
 ```bash
 # Im /instances Ordner: bestehenden Ordner duplizieren
 cp -r example beispielschule
 cd beispielschule
 
-# .env anpassen — neuer DOMAIN, neue DB
-nano .env
+# Container-/Router-Namen umbenennen: example → beispielschule
+sed -i 's/example/beispielschule/g' docker-compose.yml
 
-# In docker-compose.yml: alle Container-Namen `nc-example-*` durch
-# `nc-beispielschule-*` ersetzen, ebenso die Router-Namen `example` → `beispielschule`
-sed -i '' 's/example/beispielschule/g' docker-compose.yml
+# .env aus Vorlage anlegen
+cp .env.example .env
+nano .env   # neue DOMAIN, eigene DB-Werte
+```
 
-# Starten
+Datenbank auf dem DB-Server anlegen:
+```sql
+CREATE DATABASE db_beispiel CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
+CREATE USER 'user_beispiel'@'<APP_SERVER_PRIVATE_IP>' IDENTIFIED BY '<NEUES_PASSWORT>';
+GRANT ALL PRIVILEGES ON db_beispiel.* TO 'user_beispiel'@'<APP_SERVER_PRIVATE_IP>';
+FLUSH PRIVILEGES;
+```
+
+Datenverzeichnis auf der Storage-Box anlegen und auf dem Host als zusätzlichen Mount-Punkt einbinden (z. B. `/mnt/beispielschule-data`). Im docker-compose.yml die Volume-Pfade entsprechend anpassen.
+
+Starten:
+```bash
 docker compose up -d
 ```
 
