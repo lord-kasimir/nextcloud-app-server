@@ -38,14 +38,19 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
 
 ```
 .
-├── proxy/                    # Traefik — läuft EINMAL pro Server
+├── README.md                       # diese Datei
+├── db-server-setup.md              # MariaDB-Server vorbereiten
+├── storage-server-setup.md         # Storage-Box (oder NFS-Server) vorbereiten
+├── host-setup.md                   # App-Server-Host vorbereiten
+│
+├── proxy/                          # Traefik — läuft EINMAL pro Server
 │   ├── docker-compose.yml
 │   ├── traefik.yml
 │   ├── .env.example
 │   └── README.md
 │
-└── instances/                # Eine NC-Instanz pro Unterordner
-    └── example/             # cloud.example.com
+└── instances/                      # Eine NC-Instanz pro Unterordner
+    └── example/                    # cloud.example.com (Vorlage)
         ├── docker-compose.yml
         ├── nginx/
         │   └── nextcloud.conf
@@ -53,21 +58,20 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
         └── README.md
 ```
 
-## Reihenfolge
+## Reihenfolge für ein komplettes Setup
 
-1. **Host vorbereiten:** Schritt-für-Schritt-Anleitung in [host-setup.md](host-setup.md) — Docker, UFW, CrowdSec, NFS-Mount, DNS
-2. **Traefik starten** (einmalig): siehe `proxy/README.md`
-3. **NC-Instanz starten:** siehe `instances/example/README.md`
-4. **Weitere Instanzen:** `instances/example` als Vorlage kopieren, Domain + DB-Daten anpassen, starten
+1. **Hetzner Cloud Network** anlegen (in der Hetzner Console) und alle drei Server hineinhängen
+2. **DB-Server vorbereiten:** [db-server-setup.md](db-server-setup.md) — MariaDB installieren, Tuning, bind-address, UFW
+3. **Storage-Server vorbereiten:** [storage-server-setup.md](storage-server-setup.md) — Hetzner Storage-Box oder eigener NFS-Server
+4. **App-Server vorbereiten:** [host-setup.md](host-setup.md) — Docker, UFW, CrowdSec, NFS-Mount, DNS
+5. **Traefik starten** (einmal pro App-Server): [proxy/README.md](proxy/README.md)
+6. **Erste NC-Instanz starten:** [instances/example/README.md](instances/example/README.md)
+7. **Weitere Instanzen:** `instances/example` als Vorlage kopieren — Schritt-für-Schritt in der Instanz-README
 
-## Externe Abhängigkeiten
+## Architektur-Prinzipien
 
-| Was | Wo | Wie erreichbar |
-|---|---|---|
-| MariaDB | DB-Server `<DB_SERVER_IP>` | Privates Cloud Network — `bind-address` auf private IP setzen |
-| Datenverzeichnis | Hetzner Storage-Box | NFS-Mount auf dem Host unter `/mnt/nextcloud-data` |
-
-## Stand
-
-- Beispiel-Instanz: `cloud.example.com`
-- Geplant: Multi-Domain-Setup: weitere Instanzen lassen sich einfach als Ordner-Kopie hinzufügen
+- **Trennung der Verantwortung:** App, DB und Storage je eigener Server
+- **Sicherheit:** Nur der App-Server hat eine öffentliche IP. DB und Storage sind ausschließlich über das private Cloud Network erreichbar
+- **Skalierbarkeit:** Eine Storage-Box bedient viele NC-Instanzen, ein DB-Server bedient viele NC-Datenbanken
+- **Multi-Domain:** Traefik routet anhand der Domain und holt automatisch SSL-Zertifikate
+- **Reproduzierbarkeit:** Alles als Code im Git, sensible Werte nur in `.env`-Dateien (gitignored)
