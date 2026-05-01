@@ -18,7 +18,7 @@ apt-get -y autoremove
 apt-get install -y \
     curl ca-certificates gnupg lsb-release \
     nfs-common \
-    htop nano less
+    htop nano less mc
 ```
 
 ## 3. Docker + Compose installieren
