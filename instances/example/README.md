@@ -24,7 +24,7 @@ docker compose up -d
 docker logs -f nc-example-web
 
 # 4. Erster Aufruf: https://cloud.example.com
-#    Bei Migration: config.php aus alter Instanz übernehmen, files:scan laufen lassen
+#    Beim ersten Aufruf wird Nextcloud installiert (Admin-Zugangsdaten festlegen).
 ```
 
 ## Nextcloud-CLI (occ)
