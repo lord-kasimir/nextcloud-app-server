@@ -1,6 +1,6 @@
 # Nextcloud App-Server
 
-Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf einem Hetzner V-Server. Externe MariaDB (auf separatem DB-Server) und externer Storage (Hetzner Storage-Box per NFS).
+Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf einem Hetzner V-Server. Externe MariaDB auf eigenem DB-Server und externer NFS-Storage auf eigenem File-Server, beide ausschließlich übers private Hetzner Cloud Network erreichbar.
 
 ## Architektur
 
@@ -27,7 +27,7 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
         │ (privates Cloud Network, 10.0.0.0/24)
         ▼
    ┌──────────┐  ┌──────────────┐
-   │ DB-Server│  │ Storage-Box  │
+   │ DB-Server│  │ File-Server  │
    │ MariaDB  │  │ NFS-Export   │
    └──────────┘  └──────────────┘
 ```
@@ -40,7 +40,7 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
 .
 ├── README.md                       # diese Datei
 ├── db-server-setup.md              # MariaDB-Server vorbereiten
-├── storage-server-setup.md         # Storage-Box (oder NFS-Server) vorbereiten
+├── storage-server-setup.md         # NFS-File-Server vorbereiten
 ├── host-setup.md                   # App-Server-Host vorbereiten
 │
 ├── proxy/                          # Traefik — läuft EINMAL pro Server
@@ -62,7 +62,7 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
 
 1. **Hetzner Cloud Network** anlegen (in der Hetzner Console) und alle drei Server hineinhängen
 2. **DB-Server vorbereiten:** [db-server-setup.md](db-server-setup.md) — MariaDB installieren, Tuning, bind-address, UFW
-3. **Storage-Server vorbereiten:** [storage-server-setup.md](storage-server-setup.md) — Hetzner Storage-Box oder eigener NFS-Server
+3. **File-Server vorbereiten:** [storage-server-setup.md](storage-server-setup.md) — eigener NFS-Server im Cloud-Network
 4. **App-Server vorbereiten:** [host-setup.md](host-setup.md) — Docker, UFW, CrowdSec, NFS-Mount, DNS
 5. **Traefik starten** (einmal pro App-Server): [proxy/README.md](proxy/README.md)
 6. **Erste NC-Instanz starten:** [instances/example/README.md](instances/example/README.md)
@@ -72,6 +72,6 @@ Schlankes Multi-Domain-Setup für eine oder mehrere Nextcloud-Instanzen auf eine
 
 - **Trennung der Verantwortung:** App, DB und Storage je eigener Server
 - **Sicherheit:** Nur der App-Server hat eine öffentliche IP. DB und Storage sind ausschließlich über das private Cloud Network erreichbar
-- **Skalierbarkeit:** Eine Storage-Box bedient viele NC-Instanzen, ein DB-Server bedient viele NC-Datenbanken
+- **Skalierbarkeit:** Ein File-Server (mit nachträglich erweiterbarem Cloud-Volume) bedient viele NC-Instanzen, ein DB-Server bedient viele NC-Datenbanken
 - **Multi-Domain:** Traefik routet anhand der Domain und holt automatisch SSL-Zertifikate
 - **Reproduzierbarkeit:** Alles als Code im Git, sensible Werte nur in `.env`-Dateien (gitignored)

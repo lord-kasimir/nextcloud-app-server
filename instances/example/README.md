@@ -111,7 +111,7 @@ GRANT ALL PRIVILEGES ON db_beispiel.* TO 'user_beispiel'@'<APP_SERVER_PRIVATE_IP
 FLUSH PRIVILEGES;
 ```
 
-Datenverzeichnis auf der Storage-Box anlegen und auf dem Host als zusätzlichen Mount-Punkt einbinden (z. B. `/mnt/beispielschule-data`). Im docker-compose.yml die Volume-Pfade entsprechend anpassen.
+Datenverzeichnis auf dem File-Server anlegen (`/srv/nc-data/beispielschule`, `chown 33:33`, `chmod 770`) und auf dem Host als zusätzlichen Mount-Punkt einbinden (z. B. `/mnt/beispielschule-data`). Im docker-compose.yml die Volume-Pfade entsprechend anpassen.
 
 Starten:
 ```bash

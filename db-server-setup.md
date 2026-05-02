@@ -142,9 +142,9 @@ chmod +x /usr/local/bin/nc-db-backup.sh
 echo "0 3 * * * root /usr/local/bin/nc-db-backup.sh" > /etc/cron.d/nc-db-backup
 ```
 
-## Auf einem bestehenden Linux-Server (z. B. ohne dass er ausschließlich DB-Server ist)
+## MariaDB auf einem bestehenden Linux-Server mitlaufen lassen
 
-Falls MariaDB auf einem bestehenden Server (z. B. Jitsi-Server oder ähnlich) zusätzlich installiert wird:
+Falls der DB-Server kein dedizierter Server, sondern ein bestehender Linux-Server mit anderen Diensten ist:
 - Schritte 2, 3, 4, 6 unverändert
 - Schritt 5 (UFW): nur die `ufw allow from <APP_SERVER_PRIVATE_IP> to any port 3306` ergänzen, bestehende Regeln nicht überschreiben
 - Schritt 7 (CrowdSec): falls fail2ban schon läuft, dabei bleiben statt parallel beides

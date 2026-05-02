@@ -88,14 +88,14 @@ systemctl restart crowdsec
 cscli collections list
 ```
 
-## 6. NFS-Mount der Storage-Box
+## 6. NFS-Mount des File-Servers
 
 ```bash
 # Mount-Punkt anlegen
 mkdir -p /mnt/nextcloud-data
 
 # Eintrag in /etc/fstab
-echo "<NFS_SERVER_IP>:/<EXPORT_PFAD> /mnt/nextcloud-data nfs defaults,rw,_netdev,bg,hard,intr 0 0" >> /etc/fstab
+echo "<FILE_SERVER_PRIVATE_IP>:/srv/nc-data /mnt/nextcloud-data nfs defaults,rw,_netdev,bg,hard,intr,noatime 0 0" >> /etc/fstab
 
 # Mounten
 mount -a
@@ -105,9 +105,9 @@ mount | grep nextcloud-data
 ls -la /mnt/nextcloud-data
 ```
 
-`<NFS_SERVER_IP>` ist die private IP des Storage-Servers (Hetzner Cloud Network). `<EXPORT_PFAD>` der freigegebene Ordner auf dem NFS-Server (z. B. `/nextcloud/instance-name`).
+`<FILE_SERVER_PRIVATE_IP>` ist die private Cloud-Network-IP des File-Servers, `/srv/nc-data` der dort exportierte Ordner (siehe `storage-server-setup.md`).
 
-**Wichtig:** Nextcloud läuft im Container als `www-data` mit UID/GID 33. Das Verzeichnis auf der NFS-Seite muss `chown 33:33` und `chmod 750` haben, sonst gibt es Permission-Errors.
+**Wichtig:** Nextcloud läuft im Container als `www-data` mit UID/GID 33. Das Verzeichnis auf dem File-Server muss `chown 33:33` und `chmod 770` haben, sonst gibt es Permission-Errors.
 
 ## 7. Docker-Netzwerk für Traefik
 

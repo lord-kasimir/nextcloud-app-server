@@ -15,7 +15,7 @@ services:
       - nc-config:/var/www/html/config
       - nc-custom-apps:/var/www/html/custom_apps
       - nc-themes:/var/www/html/themes
-      - /mnt/nextcloud-data:/var/www/html/data        # NFS-Mount → Storage-Box
+      - /mnt/nextcloud-data:/var/www/html/data        # NFS-Mount → File-Server
       - ./php/zz-nextcloud.ini:/usr/local/etc/php/conf.d/zz-nextcloud.ini:ro
       - ./php/zz-fpm.conf:/usr/local/etc/php-fpm.d/zz-fpm.conf:ro
     environment:

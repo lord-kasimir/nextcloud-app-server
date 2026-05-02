@@ -1,168 +1,104 @@
-# Storage-Server-Setup
+# File-Server-Setup (NFS)
 
-Zwei Wege — Empfehlung **Hetzner Storage-Box**. Eigener V-Server mit NFS als Alternative für Sonderfälle.
+Eigener kleiner V-Server im Hetzner Cloud Network, exportiert per NFS einen Daten-Ordner. Der App-Server mountet diesen Ordner als `/mnt/nextcloud-data` und Nextcloud schreibt seine User-Dateien dort hinein.
 
-## Variante A: Hetzner Storage-Box (empfohlen)
+**Warum eigener Server, nicht Hetzner Storage-Box?** Die Hetzner Storage-Box unterstützt NFS schlicht nicht — nur SMB/CIFS, FTP/SFTP, WebDAV, SCP. Für Nextcloud-Daten ist NFS auf einem eigenen V-Server klar im Vorteil: SSD statt HDD, Mount-Optionen frei wählbar, IP-Whitelist möglich, später per Cloud-Volume erweiterbar.
 
-Wartungsfrei, Snapshots inklusive, günstig pro TB, hochverfügbar. Für die typische Nextcloud-Nutzung (Dokumente, gelegentliche Foto-Uploads) absolut ausreichend.
+Alle Befehle laufen als Root oder mit `sudo`.
 
-### A.1 — Storage-Box bestellen
+## 1. Server bestellen
 
-In der Hetzner Console:
-- **Storage Box** auswählen, gewünschte Größe (BX11 100 GB / BX21 1 TB / BX31 5 TB / …)
-- Region: idealerweise **gleiche Region** wie der App-Server (für niedrige Latenz)
+In der Hetzner Cloud Console:
+- **CX22** reicht für den Pilot (2 vCPU, 4 GB RAM, 40 GB NVMe lokal). Für produktive Nutzung mit mehreren Instanzen: CX32 oder dediziertes CCX23.
+- **Region:** dieselbe wie der App-Server (für niedrige Latenz)
+- **Networking:** beim Bestellen das Cloud-Network mit anhaken — Server bekommt automatisch eine private IP wie `10.0.0.x`
+- **SSH-Key:** Public-Key des Admin-Rechners hinterlegen (kein Passwort-Login)
 
-### A.2 — Subaccount mit SSH-Key anlegen
+Cloud-Volume kann später jederzeit hinzugefügt werden, wenn der Bord-NVMe knapp wird.
 
-Subaccounts sind nötig, weil der Haupt-Login der Storage-Box keine NFS-Konfiguration erlaubt:
-
-1. In der Storage-Box-Übersicht → **"Subaccounts"** → **"Subaccount erzeugen"**
-2. Name vergeben (z. B. `nc-storage`)
-3. Verzeichnis (Home) festlegen — z. B. `/home/nc-storage` (Subaccount sieht nur sein eigenes Verzeichnis)
-4. Protokoll-Auswahl:
-   - **NFS**: anhaken (das ist der Schlüssel)
-   - SSH: anhaken (für Verwaltung der Permissions per Kommandozeile)
-   - Optional: SMB
-5. SSH-Key hinzufügen — den **Public-Key des App-Servers** (`/root/.ssh/id_ed25519.pub` oder einen dedizierten Key) eintragen
-
-### A.3 — NFS-Export-Berechtigung setzen
-
-Hetzner verwaltet Zugriffe in der Console:
-- Subaccount → **"NFS"-Tab**
-- IP des App-Servers eintragen (am besten die **private Cloud-Network-IP**, falls Storage-Box im Cloud-Network liegt; sonst die öffentliche)
-- Subnet-Maske `/32` für eine einzelne IP
-
-### A.4 — Verzeichnis und Permissions vorbereiten
-
-Die Storage-Box arbeitet intern mit Linux-Permissions. UID/GID 33 muss dem `www-data`-User auf dem App-Server entsprechen.
-
-```bash
-# Vom Mac/Workstation per SSH zur Storage-Box:
-ssh -p 23 nc-storage@<storage-box-host>.your-storagebox.de
-
-# In der Box-Shell:
-mkdir nextcloud
-chown 33:33 nextcloud
-chmod 750 nextcloud
-ls -la
-exit
-```
-
-(Hetzner Storage-Box: SSH läuft auf Port 23, nicht 22)
-
-### A.5 — Auf dem App-Server mounten
-
-Auf dem App-Server, in `/etc/fstab`:
-
-```
-<storage-box-host>.your-storagebox.de:/home/nc-storage/nextcloud /mnt/nextcloud-data nfs defaults,rw,_netdev,bg,hard,intr 0 0
-```
-
-Dann:
-```bash
-mkdir -p /mnt/nextcloud-data
-mount -a
-ls -la /mnt/nextcloud-data
-```
-
-### A.6 — Mehrere NC-Instanzen auf einer Storage-Box
-
-Eine Storage-Box reicht für viele NC-Instanzen — pro Instanz ein eigenes Unterverzeichnis:
-
-```bash
-# Auf der Storage-Box per SSH:
-mkdir nextcloud/cloudrms nextcloud/beispielschule
-chown 33:33 nextcloud/*
-chmod 750 nextcloud/*
-```
-
-Auf dem App-Server entsprechend pro Instanz einen eigenen Mount-Punkt einrichten oder einen gemeinsamen Mount mit Unterverzeichnissen verwenden.
-
----
-
-## Variante B: Eigener V-Server mit NFS (Alternative)
-
-Sinnvoll wenn:
-- Höhere IO-Last erwartet wird (Video-Streaming, viele parallele Uploads)
-- Spezielle Permissions-Anforderungen (ACLs, etc.)
-- Zusätzliche Dienste auf dem Storage-Server laufen sollen
-- Mehr Kontrolle gewünscht ist
-
-### B.1 — Server vorbereiten
+## 2. System-Updates und Basis-Pakete
 
 ```bash
 apt-get update -qq
 apt-get -y dist-upgrade
-apt-get install -y nfs-kernel-server nano htop mc less ufw
+apt-get install -y nfs-kernel-server ufw nano htop mc less
 ```
 
-### B.2 — NFS-Verzeichnis anlegen
+## 3. NFS-Verzeichnis anlegen
+
+Nextcloud läuft im Container als `www-data` mit UID/GID 33 — der Daten-Ordner muss exakt diesem User/Group gehören.
 
 ```bash
-mkdir -p /srv/nextcloud
-chown 33:33 /srv/nextcloud
-chmod 750 /srv/nextcloud
+mkdir -p /srv/nc-data
+chown 33:33 /srv/nc-data
+chmod 770 /srv/nc-data
 ```
 
-### B.3 — Export konfigurieren
+## 4. Export konfigurieren
+
+Export nur ans Cloud-Network freigeben (10.0.0.0/16) — nicht ans öffentliche Internet. `no_root_squash` ist nötig, weil der App-Server-Container intern als root in den Mount schreiben darf, ohne die UID/GID-Mapping zu zerstören.
 
 ```bash
-echo "/srv/nextcloud <APP_SERVER_PRIVATE_IP>(rw,sync,no_subtree_check,no_root_squash)" >> /etc/exports
+echo "/srv/nc-data 10.0.0.0/16(rw,sync,no_subtree_check,no_root_squash)" > /etc/exports
 exportfs -ra
-systemctl enable --now nfs-kernel-server
+systemctl enable --now nfs-server
 exportfs -v
 ```
 
 **Optionen-Erklärung:**
 - `rw` — Lesen + Schreiben
 - `sync` — Schreibvorgänge synchron auf Disk (sicherer, etwas langsamer)
-- `no_subtree_check` — Performance-Verbesserung, Standard
-- `no_root_squash` — root auf der App-Server-Seite kann auch root-Operationen ausführen (wichtig für `chown` etc. — bei Bedarf einschränken)
+- `no_subtree_check` — Performance, Standard
+- `no_root_squash` — root auf der App-Server-Seite kann auch root-Operationen ausführen (wichtig für `chown` etc.)
 
-### B.4 — UFW
+## 5. UFW-Firewall
 
 ```bash
 ufw default allow outgoing
 ufw default deny incoming
 ufw allow 22/tcp
-ufw allow from <APP_SERVER_PRIVATE_IP> to any port 2049 proto tcp
+ufw allow from 10.0.0.0/16 to any port nfs
 ufw --force enable
+ufw status verbose
 ```
 
-### B.5 — Auf dem App-Server mounten
+NFS belegt mehrere Ports (2049 + rpcbind 111 + statd dynamisch). `ufw allow from <subnet> to any port nfs` öffnet das gesamte NFS-Service-Bündel sauber.
 
-```
-<NFS_SERVER_PRIVATE_IP>:/srv/nextcloud /mnt/nextcloud-data nfs defaults,rw,_netdev,bg,hard,intr 0 0
-```
+## 6. Pro NC-Instanz eigenes Unterverzeichnis (optional)
+
+Bei mehreren NC-Instanzen pro Instanz ein eigenes Unterverzeichnis anlegen:
 
 ```bash
-mkdir -p /mnt/nextcloud-data
-mount -a
-ls -la /mnt/nextcloud-data
+mkdir /srv/nc-data/pilot /srv/nc-data/instanz2
+chown 33:33 /srv/nc-data/*
+chmod 770 /srv/nc-data/*
 ```
 
-### B.6 — Pro NC-Instanz eigenes Unterverzeichnis
+Auf dem App-Server pro Instanz einen eigenen Mount-Punkt einhängen, oder einen gemeinsamen Mount mit Unterverzeichnissen verwenden.
 
-```bash
-# Auf dem NFS-Server:
-mkdir /srv/nextcloud/cloudrms /srv/nextcloud/beispielschule
-chown 33:33 /srv/nextcloud/*
-chmod 750 /srv/nextcloud/*
-```
+## 7. Backup-Strategie
 
----
+Eigener File-Server = eigene Backup-Verantwortung. Optionen:
 
-## Backup-Strategie
-
-**Bei Storage-Box:** In der Hetzner Console unter Storage-Box → "Snapshots" automatische Snapshots aktivieren. Hetzner bietet bis zu 10 manuelle + automatische Snapshots inklusive. Empfehlung: täglich, Aufbewahrung 7-14 Tage.
-
-**Bei eigenem NFS-Server:** Eigene Backup-Lösung nötig. Optionen:
-- `rsnapshot` für inkrementelle Datei-Backups auf separates Volume
-- `borgbackup` mit Deduplizierung auf externe Storage-Box
-- `zfs snapshot` falls das Dateisystem ZFS ist
+- **Hetzner Storage-Box als Backup-Ziel** (NICHT als Live-Storage): Storage-Box per SMB/CIFS mounten oder per `rsync` über SSH/Port 23 ansprechen, täglich Snapshot ziehen. Kosten ab ~4,50 €/Monat für 1 TB.
+- **Cloud-Volume Snapshots:** wenn ein Cloud-Volume angehängt ist, in der Hetzner-Console Snapshots aktivieren
+- **borgbackup** mit Deduplizierung auf eine Storage-Box oder externes Ziel
+- **rsnapshot** für inkrementelle Datei-Backups auf separates Volume
 
 In jedem Fall: **Datenbank-Backup separat vom DB-Server** (siehe `db-server-setup.md`), beide zusammen ergeben ein konsistentes NC-Backup.
 
+## 8. Verifikation vom App-Server aus
+
+```bash
+# Auf dem APP-Server testen:
+showmount -e <FILE_SERVER_PRIVATE_IP>
+# → Muss /srv/nc-data 10.0.0.0/16 zeigen
+
+mount -t nfs <FILE_SERVER_PRIVATE_IP>:/srv/nc-data /mnt/nextcloud-data
+ls -la /mnt/nextcloud-data
+# → Owner muss 33:33 sein, leer
+```
+
 ## Hinweis zu UID/GID 33
 
-Nextcloud im Container läuft als `www-data` mit UID/GID 33. Der NFS-Server (egal ob Storage-Box oder eigener Server) muss die Verzeichnisse mit dieser UID/GID anlegen, sonst gibt es Permission-Fehler.
+Nextcloud im Container läuft als `www-data` mit UID/GID 33. Auf dem File-Server muss der Daten-Ordner mit `chown 33:33` angelegt werden. Auch wenn der File-Server selbst keinen `www-data`-User mit dieser ID hat: NFS überträgt die numerischen IDs, nicht die Namen. Hauptsache 33:33 — der Container kommt damit klar.
