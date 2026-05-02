@@ -31,7 +31,9 @@ read -rp "Domain für diese NC-Instanz (z. B. cloud.example.com): " DOMAIN
 read -rp "Private IP des DB-Servers (im Cloud Network, z. B. 10.0.0.5): " DB_HOST
 
 # DB-Name + User aus Instanz-Namen ableiten (alphanumerisch + underscores)
-SAFE_NAME=$(echo "$INSTANCE" | tr -c 'a-zA-Z0-9_' '_' | head -c 32)
+# printf statt echo, damit kein abschließender Newline reinrutscht und tr ihn
+# als ungültiges Zeichen durch '_' ersetzt (= trailing underscore-Bug)
+SAFE_NAME=$(printf '%s' "$INSTANCE" | tr -c 'a-zA-Z0-9_' '_' | head -c 32)
 DB_NAME="db_${SAFE_NAME}"
 DB_USER="user_${SAFE_NAME}"
 
